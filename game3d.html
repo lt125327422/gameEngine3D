@@ -7,8 +7,8 @@
 <body>
 
 <script type="module">
-    import {GameEngine3D,Scene,Sprite} from "./src"
-    import {GUI,mat4} from "./src/lib"
+    import {GameEngine3D, Scene, Sprite,Camera} from "./src"
+    import {GUI, mat4} from "./src/lib"
 
     const canvas = document.querySelector("#game3d");
 
@@ -17,13 +17,14 @@
      */
     const gl = canvas.getContext("webgl2");
 
-    class TestScene extends  Scene {
-        createScene() {
+    class TestScene extends Scene {
+        layoutScene() {
             return [
+                new Camera(),
                 new Sprite({
-                    imageSrc:"./assets/images/image1.jpg",
-                    w:.5,
-                    h:.5,
+                    // imageSrc:"./assets/images/image1.jpg",
+                    w: 1,
+                    h: 1,
 
                 })
             ]
@@ -33,34 +34,16 @@
     const gameEngine3D = new GameEngine3D({
         canvas,
         gl,
-        scenes:[
-
-        ]
+        scenes: [TestScene]
     });
 
-
-    const {width,height,clientHeight,clientWidth} = canvas;
-    // console.log(canvas)
-    // const boundingClientRect = canvas.getBoundingClientRect();
-    canvas.width = devicePixelRatio * clientWidth
-    canvas.height = devicePixelRatio * clientHeight
-
-    const testScene = new TestScene();
-    testScene._init()
-    testScene.drawScene()
-
-
-    //
-    // const gui = new GUI();
-    // const obj = {color:0x111111}
-    // gui.addColor(obj,"color")
-
+    gameEngine3D.start()
 
 </script>
 
 <canvas id="game3d"
-style="width: 720px;height: 480px;
-border: 1px solid mediumaquamarine"
+
+        style="width: 720px;height: 480px;"
 ></canvas>
 
 </body>

@@ -1,3 +1,5 @@
+import {currentScene} from "../globalShared";
+
 /**
  * @class
  */
@@ -46,7 +48,12 @@ export class GameObject {
 
     }
 
-    _init(){
+    /**
+     * @virtual
+     * @public
+     * @return void
+     */
+    async _init(){
 
     }
 
@@ -54,7 +61,11 @@ export class GameObject {
      * @virtual
      * @return void
      */
-    render(){
+    render(parent){
+    }
+
+    get sceneImageLoad(){
+        return currentScene.imageLoader
     }
 
 
