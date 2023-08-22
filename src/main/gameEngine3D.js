@@ -44,7 +44,6 @@ export class GameEngine3D {
             //  wait until isStopping !== true
             currentScene.drawScene()
 
-            return
             await nextFrame()
         }
     }

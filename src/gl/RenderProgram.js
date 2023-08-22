@@ -19,12 +19,14 @@ export class RenderProgram {
      * @param {string} vertShaderSource
      * @param uniformsConfigMap
      * @param attributesConfigMap
-     * @param data
+     * @param glData
+     * @param {Texture} colorMap
      */
     constructor({
                     fragShaderSource, vertShaderSource,
                     uniformsConfigMap, attributesConfigMap,
                     glData,
+                    colorMap
                 }) {
         this.gl = glCtx
 
@@ -33,11 +35,13 @@ export class RenderProgram {
         this.glData = glData
         this.vboMap = {}
 
+        this.colorMap = colorMap
+
         this._initProgram(vertShaderSource, fragShaderSource)
+
         this.useProgram()
 
         this.initParameterLocationOfShader()
-
         this.createBuffers()
     }
 
@@ -59,7 +63,6 @@ export class RenderProgram {
     }
 
     /**
-     *
      * @param {GLenum} drawType
      */
     draw({drawType} = {}) {
@@ -73,11 +76,7 @@ export class RenderProgram {
 
         this.getRenderDataOfShader()
 
-        // if (this.spriteConfig.imageSrc) {
-        //     glCtx.activeTexture(glCtx.TEXTURE0)
-        //     glCtx.bindTexture(glCtx.TEXTURE_2D, this.texture)
-        //     glCtx.uniform1i(this.renderProgram.uniforms.uSampler, 0)
-        // }
+        this.colorMap?.active(this.webGLProgram)
 
         glCtx.bindVertexArray(this.vao);
         glCtx.drawElements(drawType, this.glData.indices.length, glCtx.UNSIGNED_SHORT, 0)
@@ -86,7 +85,6 @@ export class RenderProgram {
 
     getUniforms() {
         for (const [uniformKey, {type}] of Object.entries(this.uniformsConfigMap)) {
-            // console.log(type, uniformKey)
             const data = this.glData[uniformKey];
             const location = this.uniforms[uniformKey];
             if (/Matrix\d.v$/.test(type)) {
@@ -99,7 +97,6 @@ export class RenderProgram {
     }
 
     getRenderDataOfShader() {
-
         glCtx.bindVertexArray(this.vao)
 
         glCtx.bindBuffer(glCtx.ELEMENT_ARRAY_BUFFER, this.ibo)

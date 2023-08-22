@@ -21,10 +21,17 @@
         layoutScene() {
             return [
                 new Camera(),
+                // new Sprite({
+                //     imageSrc:"./assets/images/image1.jpg",
+                //     w: 1,
+                //     h: 1,
+                //
+                // }),
+
                 new Sprite({
-                    // imageSrc:"./assets/images/image1.jpg",
-                    w: 1,
-                    h: 1,
+                    imageSrc:"./assets/images/player.png",
+                    w: .5,
+                    h: .5,
 
                 })
             ]
@@ -42,7 +49,6 @@
 </script>
 
 <canvas id="game3d"
-
         style="width: 720px;height: 480px;"
 ></canvas>
 

@@ -1,5 +1,5 @@
 import {currentScene, glCtx} from "../../globalShared";
-import {RenderProgram} from "../../gl";
+import {RenderProgram, Texture} from "../../gl";
 import {GameObject, GameObjectBasicProps} from "../gameObject.js";
 import {mat4, vec3, vec4} from "../../lib";
 
@@ -9,14 +9,15 @@ const vertShaderSource = `
   
    //   uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
-    
+    uniform mat4 uViewMatrix;
+
     in vec4 aVertexPosition;
     in vec2 aTextureCoords;
     
     out vec2 vTextureCoords;
     
     void main(){
-        gl_Position = uProjectionMatrix * vec4(aVertexPosition);
+        gl_Position = uProjectionMatrix * uViewMatrix * vec4(aVertexPosition);
         vTextureCoords = aTextureCoords;
     }
 `
@@ -54,9 +55,9 @@ const uniformsConfigMap = {
     uProjectionMatrix: {
         type: "uniformMatrix4fv",
     },
-    uSampler: {
-        type: "uniform1i",
-    },
+    // uSampler: {
+    //     type: "uniform1i",
+    // },
 }
 
 const attributesConfigMap = {
@@ -124,18 +125,25 @@ export class Sprite extends GameObject {
     async _init() {
         const {spriteConfig: {imageSrc}} = this;
 
-        await this._generateAttrData()
+        this._generateAttrData()
+
+        let colorMap
+        if (imageSrc) {
+            colorMap = new Texture(imageSrc, 0);
+            await colorMap.loadTexture()
+        }
 
         this.renderProgram = new RenderProgram({
             vertShaderSource,
             fragShaderSource: generateFragShader({useTexture: !!imageSrc}),
             uniformsConfigMap,
             attributesConfigMap,
-            glData: this.glData
+            glData: this.glData,
+            colorMap
         })
     }
 
-    async _generateAttrData() {
+    _generateAttrData() {
         const {spriteConfig: {w, h}} = this;
         const hw = w / 2;
         const hh = h / 2;
@@ -145,48 +153,21 @@ export class Sprite extends GameObject {
         const p3 = vec3.subtract(vec3.create(), p0, [0, h, 0])
         const p2 = vec3.subtract(vec3.create(), p1, [0, h, 0]);
 
-        //  for test only
-        [p0, p1, p2, p3].forEach((point) => {
-            point[2] = -1
-        })
-
-        // console.log([...p0, ...p1, ...p2, ...p3])
         this.vertices = [...p0, ...p1, ...p2, ...p3]
-
-        // this.vertices = [
-        //     -0.5, 0.5, -1,
-        //     0.5, 0.5, -1,
-        //     0.5, -0.5, -1,
-        //     -0.5, -0.5, -1,
-        // ]
-
-        // const {spriteConfig: {imageSrc}} = this;
-        // if (imageSrc) {
-        //     const {image} = await this.sceneImageLoad.load(imageSrc)
-        //     const gl = glCtx
-        //
-        //     this.texture = gl.createTexture();
-        //     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        //     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-        //
-        //     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        //     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-        //
-        //     gl.generateMipmap(gl.TEXTURE_2D);
-        //     gl.bindTexture(gl.TEXTURE_2D, null);
-        // }
     }
 
     _setData() {
+        currentScene.camera.update()
+
         //  set uniform data
         this.glData.uProjectionMatrix = currentScene.camera.projectionMatrix
         this.glData.uViewMatrix = currentScene.camera.viewMatrix
+
         this.glData.uQuadColor = this.spriteConfig.color
-        this.glData.uSampler = -1
 
         //  set ibo and vbo data
         this.glData.indices = indices
-        this.glData.aVertexPosition  = this.vertices
+        this.glData.aVertexPosition = this.vertices
         this.glData.aTextureCoords = defaultTextureCoords
     }
 
