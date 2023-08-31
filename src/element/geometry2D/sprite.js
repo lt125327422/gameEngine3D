@@ -1,13 +1,15 @@
 import {currentScene, glCtx} from "../../globalShared";
 import {RenderProgram, Texture} from "../../gl";
 import {GameObject, GameObjectBasicProps} from "../gameObject.js";
-import {mat4, vec3, vec4} from "../../lib";
+import {mat4, quat, vec3, vec4} from "../../lib";
+import {defaultTextureCoords} from "../../gl/texture.js";
+import {defaultColor, getNormalizedRGBA} from "../../utils";
 
-const vertShaderSource = `
+export const vertShaderSource = `
     #version 300 es
     precision mediump float;
   
-   //   uniform mat4 uModelViewMatrix;
+    uniform mat4 uModelMatrix;
     uniform mat4 uProjectionMatrix;
     uniform mat4 uViewMatrix;
 
@@ -17,12 +19,12 @@ const vertShaderSource = `
     out vec2 vTextureCoords;
     
     void main(){
-        gl_Position = uProjectionMatrix * uViewMatrix * vec4(aVertexPosition);
+        gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(aVertexPosition);
         vTextureCoords = aTextureCoords;
     }
 `
 
-const generateFragShader = ({useTexture = false}) => `
+export const generateFragShader = ({useTexture = false}) => `
     #version 300 es
     precision mediump float;
     
@@ -45,7 +47,7 @@ const generateFragShader = ({useTexture = false}) => `
 /**
  * @type {{[prop:string]: UniformDesc}}
  */
-const uniformsConfigMap = {
+export const uniformsConfigMap = {
     uQuadColor: {
         type: "uniform4fv",
     },
@@ -55,36 +57,20 @@ const uniformsConfigMap = {
     uProjectionMatrix: {
         type: "uniformMatrix4fv",
     },
-    // uSampler: {
-    //     type: "uniform1i",
-    // },
+    uModelMatrix: {
+        type: "uniformMatrix4fv",
+    },
 }
 
-const attributesConfigMap = {
+export const attributesConfigMap = {
     aVertexPosition: {
         size: 3
     },
     aTextureCoords: {
         size: 2
     },
-    // indices: {
-    //     size: 3 ???
-    // },
 }
 
-/**
- * @public
- * @param {number} r
- * @param {number} g
- * @param {number} b
- * @param {number} a
- * @return {Float32List}
- */
-const getNormalizedRGBA = (r, g, b, a = 1.) => {
-    const color = vec3.fromValues(r, g, b);
-    vec3.normalize(color, color)
-    return vec4.fromValues(...color, a)
-}
 
 class SpriteConfig extends GameObjectBasicProps {
     constructor() {
@@ -94,19 +80,12 @@ class SpriteConfig extends GameObjectBasicProps {
     }
 }
 
-const indices = [
+export const rectangularIndices = [
     0, 1, 2,
     0, 2, 3
 ]
 
-const defaultTextureCoords = [
-    0, 1,
-    1, 1,
-    1, 0,
-    0, 0,
-]
 
-const defaultColor = getNormalizedRGBA(27, 195, 162)
 
 export class Sprite extends GameObject {
 
@@ -118,20 +97,22 @@ export class Sprite extends GameObject {
 
         this.spriteConfig = spriteConfig
         this.glData = {}
+        this.colorMap = null
 
         this.spriteConfig.color ??= defaultColor
+
     }
 
     async _init() {
         const {spriteConfig: {imageSrc}} = this;
 
-        this._generateAttrData()
-
-        let colorMap
         if (imageSrc) {
-            colorMap = new Texture(imageSrc, 0);
-            await colorMap.loadTexture()
+            this.colorMap = new Texture(imageSrc, 0);
+            await this.colorMap.loadTexture()
+            this.isAllAssetsLoaded = true
         }
+
+        this.generateVerticesData({imageRatio:this?.colorMap.imageRatio ?? 1.})
 
         this.renderProgram = new RenderProgram({
             vertShaderSource,
@@ -139,49 +120,41 @@ export class Sprite extends GameObject {
             uniformsConfigMap,
             attributesConfigMap,
             glData: this.glData,
-            colorMap
+            colorMap:this.colorMap
         })
+
     }
 
-    _generateAttrData() {
-        const {spriteConfig: {w, h}} = this;
-        const hw = w / 2;
-        const hh = h / 2;
+    draw(parent) {
+        this._updateData()
+        if (!this.isAllAssetsLoaded){
+            return
+        }
+        this.renderProgram.draw()
+    }
+
+    generateVerticesData({imageRatio}) {
+        const hh =  .5;
+        const hw = imageRatio * hh;
 
         const p0 = vec3.fromValues(-hw, +hh, 0)
-        const p1 = vec3.add(vec3.create(), p0, [w, 0, 0])
-        const p3 = vec3.subtract(vec3.create(), p0, [0, h, 0])
-        const p2 = vec3.subtract(vec3.create(), p1, [0, h, 0]);
+        const p1 = vec3.fromValues(hw, hh, 0) //   vec3.add(vec3.create(), p0, [hw, hh, 0])
+        const p2 = vec3.fromValues(hw, -hh, 0) //   vec3.subtract(vec3.create(), p1, [-hw, -hh, 0]);
+        const p3 = vec3.fromValues(-hw, -hh, 0) //   vec3.subtract(vec3.create(), p0, [hw, -hh, 0])
 
         this.vertices = [...p0, ...p1, ...p2, ...p3]
     }
 
-    _setData() {
-        currentScene.camera.update()
-
-        //  set uniform data
+    _updateData() {
         this.glData.uProjectionMatrix = currentScene.camera.projectionMatrix
         this.glData.uViewMatrix = currentScene.camera.viewMatrix
-
+        this.glData.uModelMatrix = this.transform.modelMatrix
         this.glData.uQuadColor = this.spriteConfig.color
 
         //  set ibo and vbo data
-        this.glData.indices = indices
+        this.glData.indices = rectangularIndices
         this.glData.aVertexPosition = this.vertices
         this.glData.aTextureCoords = defaultTextureCoords
-    }
-
-    getModelMatrix() {
-
-    }
-
-    render(parent) {
-        this._setData()
-        this.renderProgram.draw()
-
-        // for (const child of this.children) {
-        //     child.render(this)
-        // }
     }
 
 }

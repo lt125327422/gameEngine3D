@@ -8,47 +8,42 @@ class CameraConfig extends GameObjectBasicProps {
     }
 }
 
+const zAxisIdx = 2
+
 export class Camera extends GameObject {
 
-    constructor(cameraConfig) {
+    constructor(cameraConfig={}) {
         super(cameraConfig);
-
         this.cameraConfig = cameraConfig
 
-        this.eyesPos = vec3.fromValues(0, 0, 1)
-        this.focusPos = vec3.fromValues(0, 0, -1)
-        this.upDir = vec3.fromValues(0, 1, 0)
+        // this.eyesPos = vec3.fromValues(0, 0, 0)
+        // this.focusPos = vec3.fromValues(0, 0, 1)
+        // this.upDir = vec3.fromValues(0, 1, 0)
 
+        this.cameraMatrix = mat4.create()
         this.viewMatrix = mat4.create()
+        this.projectionMatrix = mat4.create()
+
+        this.cameraPosition = vec3.create()
+
+        this.horizonRotate = 0
+        this.verticalRotate = 0
     }
 
     _init() {
         const {canvas: {height, width}} = glCtx;
 
-        this.horizonRotate = 0
-        this.verticalRotate = 0
-        this.cameraMatrix = mat4.create()
+       this._initCamera()
 
-        // mat4.translate(this.cameraMatrix,this.cameraMatrix,vec3.fromValues(0,0,5))
-        // mat4.invert(this.viewMatrix,this.cameraMatrix)
-        // this.viewMatrix = mat4.invert(mat4.create(),this.cameraMatrix)
-
-        // this.viewMatrix = mat4.lookAt(this.viewMatrix, this.eyesPos, this.focusPos, this.upDir)
-        this.cameraPosition = vec3.create()
-
-        this.update()
-
-        this.projectionMatrix = mat4.perspective(mat4.create(),
-            30, width / height,
-            .1, 10000);
-
-        // this.cameraPosition = vec3.create()
-        // this.cameraRotation = vec3.create()
-        // this.cameraScale = vec3.fromValues(1,1,1)
-
+        // mat4.orthoNO(this.projectionMatrix,-1,1,-1,1,-1,1)
+        mat4.perspectiveNO(this.projectionMatrix,45, width / height,.1, 10000);
         currentScene.addCamera(this)
-
         this._initControls()
+    }
+
+    _initCamera() {
+        this.cameraPosition[zAxisIdx] = 2;
+        this.update()
     }
 
     update() {
@@ -62,47 +57,13 @@ export class Camera extends GameObject {
 
     _initControls() {
         const offset = .03
-        const zAxis = 2
 
-        glCtx.canvas.addEventListener("mousemove", (evt) => {
-            if (this.pressed === 0) {
-                const {movementX,movementY} = evt;
-                this.horizonRotate += movementX *.01
-                this.verticalRotate += movementY *.01
-
-            }
-        })
-
-        glCtx.canvas.addEventListener("mousedown", (evt) => {
-            const {button} = evt;
-            if (button === 0) {
-                this.pressed = button
-            }
-        })
-        glCtx.canvas.addEventListener("mouseup", (evt) => {
-            const {button} = evt;
-            if (button === 0) {
-                this.pressed = -1
-            }
-        })
-        glCtx.canvas.addEventListener("mouseleave", (evt) => {
-            this.pressed = -1
-        })
-
-        const gui = new GUI();
-        gui.add(this.cameraPosition,"0",-3,3).name("camera x")
-        gui.add(this.cameraPosition,"1",-3,3).name("camera y")
-        gui.add(this.cameraPosition,"2",-3,3).name("camera z").setValue(1.)
-
-
-
-        // glCtx.canvas.addEventListener("wheel", (evt) => {
-        //     if (evt.deltaY > 0) {
-        //         //  shrink
-        //         this.eyesPos[zAxis] += offset
-        //     } else {
-        //         //  magnify
-        //         this.eyesPos[zAxis] -= offset
+        // glCtx.canvas.addEventListener("mousemove", (evt) => {
+        //     if (this.pressed === 0) {
+        //         const {movementX,movementY} = evt;
+        //         this.horizonRotate += movementX *.01
+        //         this.verticalRotate += movementY *.01
+        //
         //     }
         // })
         //
@@ -112,31 +73,62 @@ export class Camera extends GameObject {
         //         this.pressed = button
         //     }
         // })
-        //
         // glCtx.canvas.addEventListener("mouseup", (evt) => {
         //     const {button} = evt;
         //     if (button === 0) {
         //         this.pressed = -1
         //     }
         // })
-        //
         // glCtx.canvas.addEventListener("mouseleave", (evt) => {
-        //         this.pressed = -1
+        //     this.pressed = -1
         // })
         //
-        // glCtx.canvas.addEventListener("mousemove", (evt) => {
-        //     if (this.pressed === 0) {
-        //         this.eyesPos[0] += evt.movementX * .001 * this.eyesPos[2]
-        //         this.eyesPos[1] += evt.movementY * .001 * this.eyesPos[2] * -1
-        //
-        //         this.focusPos[0] += evt.movementX * .001 * this.eyesPos[2]
-        //         this.focusPos[1] += evt.movementY * .001 * this.eyesPos[2] * -1
-        //         // console.log(evt.movementX, evt.movementY)
-        //     }
-        // })
+        // const gui = new GUI();
+        // gui.add(this.cameraPosition,"0",-3,3).name("camera x")
+        // gui.add(this.cameraPosition,"1",-3,3).name("camera y")
+        // gui.add(this.cameraPosition,"2",-3,3).name("camera z").setValue(1.)
+
+        glCtx.canvas.addEventListener("wheel", (evt) => {
+            if (evt.deltaY > 0) {     //  shrink
+                this.cameraPosition[zAxisIdx] += offset
+            } else {   //  magnify
+                if (this.cameraPosition[zAxisIdx] - offset < .1){
+                    return
+                }
+                this.cameraPosition[zAxisIdx] -= offset
+            }
+            this.update()
+        })
+
+        glCtx.canvas.addEventListener("mousedown", (evt) => {
+            const {button} = evt;
+            if (button === 0) {
+                this.pressed = button
+            }
+        })
+
+        glCtx.canvas.addEventListener("mouseup", (evt) => {
+            const {button} = evt;
+            if (button === 0) {
+                this.pressed = -1
+            }
+        })
+
+        glCtx.canvas.addEventListener("mouseleave", (evt) => {
+                this.pressed = -1
+        })
+
+        glCtx.canvas.addEventListener("mousemove", (evt) => {
+            if (this.pressed === 0) {
+                this.cameraPosition[0] += evt.movementX * .001 * this.cameraPosition[zAxisIdx] * -1
+                this.cameraPosition[1] += evt.movementY * .001 * this.cameraPosition[zAxisIdx]
+                this.update()
+            }
+        })
+
     }
 
-    render(parent) {
+    draw(parent) {
         //  do nothing
     }
 
@@ -154,10 +146,6 @@ export class Camera extends GameObject {
 
     setCameraRotation(vec3) {
         this.cameraRotation = vec3
-    }
-
-    setCameraScale(vec3) {
-        this.cameraScale = vec3
     }
 
 

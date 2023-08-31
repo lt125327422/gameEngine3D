@@ -83,11 +83,17 @@ export class RenderProgram {
         glCtx.bindVertexArray(null);
     }
 
+    // setColorMap(colorMap){
+    //     this.colorMap = colorMap
+    // }
+
+    static MatRegex = /Matrix\d.v$/
+
     getUniforms() {
         for (const [uniformKey, {type}] of Object.entries(this.uniformsConfigMap)) {
             const data = this.glData[uniformKey];
             const location = this.uniforms[uniformKey];
-            if (/Matrix\d.v$/.test(type)) {
+            if (RenderProgram.MatRegex.test(type)) {
                 glCtx.uniformMatrix4fv(location, false, data)
             } else {
                 ;(glCtx[type])(location, data,)
