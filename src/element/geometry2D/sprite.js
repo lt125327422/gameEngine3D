@@ -4,6 +4,7 @@ import {GameObject, GameObjectBasicProps} from "../gameObject.js";
 import {mat4, quat, vec3, vec4} from "../../lib";
 import {defaultTextureCoords} from "../../gl/texture.js";
 import {defaultColor, getNormalizedRGBA} from "../../utils";
+import {RayCast} from "../../scene/RayCast.js";
 
 export const vertShaderSource = `
     #version 300 es
@@ -40,7 +41,7 @@ export const generateFragShader = ({useTexture = false}) => `
     
        textureColor = ${useTexture ? `texture(uSampler, vTextureCoords)` : `uQuadColor`};
 
-       fragColor = textureColor;
+       fragColor = vec4(vec3(textureColor.rgb),textureColor.a);
     }
 `
 
@@ -123,6 +124,7 @@ export class Sprite extends GameObject {
             colorMap:this.colorMap
         })
 
+        RayCast.mock(this);
     }
 
     draw(parent) {
@@ -142,7 +144,13 @@ export class Sprite extends GameObject {
         const p2 = vec3.fromValues(hw, -hh, 0) //   vec3.subtract(vec3.create(), p1, [-hw, -hh, 0]);
         const p3 = vec3.fromValues(-hw, -hh, 0) //   vec3.subtract(vec3.create(), p0, [hw, -hh, 0])
 
+        this.p0 = p0;
+        this.p1 = p1;
+        this.p2 = p2;
+        this.p3 = p3;
+
         this.vertices = [...p0, ...p1, ...p2, ...p3]
+
     }
 
     _updateData() {

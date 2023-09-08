@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ray Tracing</title>
+</head>
+<body>
+
+<script type="module">
+
+    import {mat4, vec3, vec4} from "./src/lib";
+
+
+    const reflect = (i, n) => {
+
+    }
+
+
+    class Material {
+        constructor({diffuse, specular, gloss}) {
+            this.diffuse = diffuse ?? vec4.fromValues(.5, .5, .5, 1.)
+            this.specular = specular ?? vec4.fromValues(.5, .5, .5, 1.)
+            this.gloss = gloss ?? 1
+        }
+    }
+
+
+    /**
+     * @interface
+     */
+    class LightSource {
+
+        /**
+         * @return direction {[]}
+         */
+        getPointToLightDirection(pointInSurface) {
+        }
+
+        /**
+         * @return color {[]}
+         */
+        getColorIntensity() {
+        }
+
+        /**
+         * @param normal {[]}
+         * @return cos {number}
+         */
+        calculateEnergyProject(normal) {
+        }
+
+
+        /**
+         * @param v {vec3}
+         * @param p {vec3}
+         * @param n {vec3}
+         * @param renderObj {RenderObject}
+         * @return {vec3}
+         */
+        calculatePhongShading(v, p, n, renderObj) {
+        }
+
+    }
+
+    /**
+     * @implements LightSource
+     */
+    class DirectionLight {
+        constructor(direction, colorIntensity) {
+            this.colorIntensity = colorIntensity
+            this.dir = vec3.normalize(vec3.create(), direction)
+            this.pointToLightDir = vec3.scale(vec3.create(), this.dir, -1)
+
+        }
+
+        getPointToLightDirection(pointInSurface) {
+            return this.pointToLightDir
+        }
+
+        getColorIntensity() {
+            return this.colorIntensity
+        }
+
+        calculateEnergyProject(n) {
+            return vec3.dot(n, this.pointToLightDir)
+        }
+
+        calculatePhongShading(v, p, n, renderObj) {
+
+            const r = reflect(this.pointToLightDir, n);
+
+            const {material: {specular, gloss, diffuse}} = renderObj;
+            const specularIntensity = Math.pow(Math.max(0, vec3.dot(v, r)), gloss) * specular * this.colorIntensity;
+            const diffuseIntensity = Math.max(0, vec3.dot(this.pointToLightDir, n)) * diffuse * this.colorIntensity;
+
+            return specularIntensity + diffuseIntensity
+        }
+    }
+
+    /**
+     * @implements LightSource
+     */
+    class PointLight {
+        constructor(position, colorIntensity) {
+            this.position = position
+            this.colorIntensity = colorIntensity
+        }
+
+        getPointToLightDirection(pointInSurface) {
+            const pointToLightDir = vec3.create()
+            vec3.sub(pointToLightDir, this.position, pointInSurface)
+            vec3.normalize(pointToLightDir, pointToLightDir)
+            return pointToLightDir
+        }
+
+        getColorIntensity() {
+            return this.colorIntensity
+        }
+
+        calculateEnergyProject(normal) {
+        }
+
+
+        calculatePhongShading(v, p, n, renderObj) {
+            const l = vec3.sub(vec3.create(), this.position, p);
+
+            const color = vec3.create()
+            const {material: {diffuse, gloss, specular}} = renderObj;
+            const d = Math.max(0, vec3.dot(n, l));
+            const diffuseInt = vec3.mul(vec3.create(), this.colorIntensity, diffuse);
+            vec3.scale(diffuseInt, diffuseInt, d)
+
+            const s = Math.pow(Math.max(0, vec3.dot(v, reflect(l, n))), gloss);
+            const specularInt = vec3.mul(vec3.create(), this.colorIntensity, specular);
+            vec3.scale(specularInt, specularInt, s)
+
+            return vec3.add(color, specularInt, diffuseInt);
+        }
+    }
+
+    /**
+     * @implements LightSource
+     */
+    class Ambient {
+
+        /**
+         * @param colorIntensity {vec3}
+         */
+        constructor(colorIntensity) {
+            this.colorIntensity = colorIntensity
+        }
+
+        getPointToLightDirection(pointInSurface) {
+
+        }
+
+        getColorIntensity() {
+            return this.colorIntensity
+        }
+
+        calculateEnergyProject(normal) {
+        }
+
+        calculatePhongShading(v, p, n, renderObj) {
+            return this.colorIntensity;
+        }
+    }
+
+    /**
+     * @interface
+     */
+    class RenderObject {
+
+        /**
+         * @return Material
+         */
+        get material() {
+
+        }
+
+        get color() {
+
+        }
+
+        /**
+         * @virtual
+         * @param origin
+         * @param dir
+         * @param min
+         * @param max
+         */
+        getIntersectPointWithRayCast(origin, dir, min, max) {
+        }
+
+        getNormalAtPoint(p) {
+
+        }
+
+        /**
+         * @virtual
+         */
+        getAABB() {
+
+        }
+
+        /**
+         * @virtual
+         */
+        getBVH() {
+
+        }
+    }
+
+    /**
+     * @implements RenderObject
+     */
+    class Sphere {
+        constructor(center, radius, material) {
+            this.center = center
+            this.radius = radius
+            this.material = material
+        }
+
+        getIntersectPointWithRayCast(origin, dir, min, max) {
+
+            return [t1, t2, tn]
+        }
+
+        getAABB() {
+
+        }
+
+        getBVH() {
+
+        }
+
+        get color() {
+            return this.material.albedo
+        }
+
+        getNormalAtPoint(p) {
+            const normal = vec3.sub(vec3.create(), p, this.center);
+            return vec3.normalize(normal, normal)
+        }
+    }
+
+    class Collider {
+        constructor(colliderPoint, collideObject) {
+            this.colliderPoint = vec3.create()
+
+            /**
+             *
+             * @type {RenderObject}
+             */
+            this.collideObject = null
+        }
+    }
+
+    class RT {
+        constructor(d = 1, vw = 1, vh = 1, canvasW, canvasH) {
+            this.canvasW = canvasW;
+            this.canvasH = canvasH;
+            this.canvas = this._initCanvas();
+
+
+            this.backgroundColor = [1, 1, 1, 1]
+
+            this.cameraPosition = [0, 0, 0]
+
+            /**
+             * @type {RenderObject[]}
+             */
+            this.objectsInScene = [new Sphere(vec3.create(), 2)]
+
+        }
+
+        _initCanvas() {
+            const canvas = this.canvas = document.createElement("canvas");
+
+            canvas.width = this.canvasW
+            canvas.height = this.canvasH
+
+            this.ctx = this.canvas.getContext("2d");
+
+            this.imageData = this.ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+            document.querySelector("body").appendChild(canvas)
+
+            return canvas
+        }
+
+        //  based on right hand
+        renderScene() {
+            for (let x = -this.canvasW / 2; x < this.canvasW / 2; x++) {
+                for (let y = -this.canvasH / 2; y < this.canvasH / 2; y++) {
+                    const viewPoint = this.screenToViewport(x, y);
+
+                    let origin = this.cameraPosition
+                    const viewDir = vec3.normalize(vec3.create(), viewPoint);
+
+                    const collider = this.rayCastNearestObjInScene(origin, viewDir);
+
+                    if (!collider) {
+                        this.putPixelOnScreen(this.backgroundColor)
+                    }
+
+                    this.putPixelOnScreen(this.calculateShader(collider, viewDir), x, y)
+                }
+            }
+        }
+
+        /**
+         * @param collider{Collider}
+         * @param viewDir{vec3}
+         */
+        calculateShader(collider, viewDir) {
+            const color = vec3.create();
+            // this.putPixelOnScreen(this.backgroundColor)
+
+            //  phong-shader
+            //  ambient + diffuse + specular + emission
+            /**
+             * @type {LightSource[]}
+             */
+            let lights = []
+
+            for (const light of lights) {
+                const n = collider.collideObject.getNormalAtPoint(collider.colliderPoint);
+                const c = light.calculatePhongShading(viewDir, collider.colliderPoint, n, collider.collideObject);
+                vec3.add(color, color, c)
+            }
+
+            return color
+        }
+
+        /**
+         * @param origin{[]}
+         * @param dir{[]}
+         * @param min{number}
+         * @param max{number}
+         * @return {Collider}
+         */
+        rayCastNearestObjInScene(origin, dir, min = 1, max = Infinity) {
+            const getPointByT = (t) => {
+                return vec3.scaleAndAdd(vec3.create(), origin, dir, t)
+            }
+
+            let nearestT = Infinity
+            let nearestObject = null
+            for (const object of this.objectsInScene) {
+                const ts = object.getIntersectPointWithRayCast(origin, dir, min, max);
+                for (const t of ts) {
+                    if (t < nearestT) {
+                        nearestT = t
+                        nearestObject = object
+                    }
+                }
+            }
+            if (nearestObject) {
+                return new Collider(getPointByT(nearestT), nearestObject)
+            }
+            return null
+        }
+
+        rayCast(origin, dir, min, max) {
+            for (const object of this.objectsInScene) {
+
+            }
+        }
+
+        rayCastAll(origin, dir) {
+
+        }
+
+        screenToViewport(screenX, screenY) {
+            const distanceToProjectionPlane = 1
+            return vec3.fromValues(screenX / this.canvasW, screenY / this.canvasH, distanceToProjectionPlane)
+        }
+
+        putPixelOnScreen(color, canvasX, canvasY) {
+            const {canvasH, canvasW} = this
+            const x = canvasW / 2 + canvasX;
+            const y = canvasH / 2 - canvasY - 1;
+
+            const {data} = this.imageData;
+
+            const start = y * canvasW * 4 + x * 4;
+
+            data[start] = color[0]
+            data[start + 1] = color[2]
+            data[start + 2] = color[1]
+            data[start + 3] = color[3]
+        }
+
+    }
+
+    // const rt = new RT();
+    // rt.renderScene()
+
+    // const project = mat4.perspectiveNO(mat4.create(),Math.PI/3,1.5,.1,10000);
+    // const unProject = mat4.invert(mat4.create(),project);
+    //
+    // //  in NDC space
+    // const pNear = vec3.fromValues(0,0,-1);
+    // const pFar = vec3.fromValues(0,0,1);
+    //
+    // const un_pn = vec3.transformMat4(vec3.create(), pNear, unProject);
+    // console.log(un_pn);
+    // const un_pf = vec3.transformMat4(vec3.create(), pFar, unProject);
+    // console.log(un_pf);
+    // console.log(vec3.normalize(vec3.create(),vec3.sub(vec3.create(),un_pf,un_pn)))
+
+</script>
+
+</body>
+</html>

@@ -11,6 +11,7 @@ import {
 import {vec3} from "../../lib";
 import {defaultColor, noop, waitUntil} from "../../utils";
 import {defaultTextureCoords} from "../../gl/texture.js";
+import {RayCast} from "../../scene/RayCast.js";
 
 class IsometricTileMapConfig extends GameObjectBasicProps {
     constructor() {
@@ -112,6 +113,7 @@ export class IsometricTileMap extends GameObject {
          * @type {Map<number, BatchedTiles>}
          */
         this.batchedMap = new Map();
+
     }
 
     draw(parent) {
@@ -192,7 +194,7 @@ export class IsometricTileMap extends GameObject {
 
                 const _x = (x - y) * .5
                 const _y = (x + y) * .25
-                console.log(_x, _y)
+                // console.log(_x, _y)
                 const perRectangularOffset = batch.indices.length / 6;
                 batch.addTile(
                     this.generateTileVerticesByCenterCoord(_x, _y),

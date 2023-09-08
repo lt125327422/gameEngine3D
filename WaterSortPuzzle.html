@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WaterSortPuzzle</title>
+</head>
+<body>
+
+<script type="module">
+
+    function randomize(values) {
+        let index = values.length,
+            randomIndex;
+
+        // While there remain elements to shuffle.
+        while (index !== 0) {
+            // Pick a remaining element.
+            randomIndex = Math.floor(Math.random() * index);
+            index--;
+
+            // And swap it with the current element.
+            [values[index], values[randomIndex]] = [values[randomIndex], values[index]];
+        }
+
+        return values;
+    }
+
+    function generateData(totalTube, emptyTube = 2) {
+        const waterTypeCount = totalTube - emptyTube
+        let withWaterTubes = Array.from({length: waterTypeCount}).flatMap((_, i) => Array.from({length: 4}).fill(i + 1))
+        let emptyTubes = Array.from({length: emptyTube}).map(_ => ([]))
+
+        const slice = (list, perListCount = 4) => {
+            const totalCount = list.length
+            const res = []
+            const _slice = (start = 0) => {
+                if (start === totalCount) {
+                    return
+                }
+                res.push(list.slice(start, start + 4))
+                _slice(start + 4)
+            }
+
+            _slice()
+
+            return res
+        }
+
+        // console.log();slice(withWaterTubes, 4)
+        let tubes = slice(randomize(withWaterTubes)).concat(emptyTubes)
+        console.log(JSON.stringify(tubes))
+    }
+
+
+    // generateData(7)
+
+    const data = [
+        // [1, 1, 2, 2],   // on the bottom of the tube => 1 ,  on the top of the tube => 5
+        // [2, 2, 1, 1],
+
+        [1, 2, 1, 2],   // on the bottom of the tube => 1 ,  on the top of the tube => 5
+        [2, 1, 2, 1],
+
+        // [2, 5, 4, 1],
+        // [4, 4, 3, 3],
+        // [3, 5, 2, 1],
+        [],
+        []
+    ]
+
+    class Queue {
+        constructor() {
+            this.data = []
+        }
+
+        get count() {
+            return this.data.length
+        }
+
+        isEmpty() {
+            return this.count === 0
+        }
+
+        enqueue(e) {
+            this.data.push(e)
+        }
+
+        dequeue() {
+            return this.data.shift()
+        }
+    }
+
+    const lastEl = arr => arr.slice(-1)[0]
+
+    class Solve {
+        constructor(data) {
+            this.data = data
+
+            this.states = [] //  allStates
+            this.prevDict = new Map()    //  currentIdx => prevIdx
+            this.nextStates = new Queue() // preparedStates
+            this.currentState = null
+        }
+
+        getNotEmptyTubes() {
+            return this.currentState.reduce((a, c, i) => {
+                if (c.length !== 0) {
+                    a.push(i)
+                }
+                return a
+            }, [])
+        }
+
+        getNotFilledTubes() {
+            return this.currentState.reduce((a, c, i) => {
+                if (c.length !== 4) {
+                    a.push(i)
+                }
+                return a
+            }, [])
+        }
+
+        //  as max as possible to transfer A to B
+        transferA2B(a, b) {
+            while (b.length === 0 || b.length !== 4 && a.length > 0 && lastEl(a) === lastEl(b)) {
+                b.push(a.pop())
+            }
+        }
+
+        isTwoSame(a, b) {
+            if (a.length !== b.length) {
+                return false
+            }
+
+            return a.every((e, i) => e === b[i])
+        }
+
+        hadTheRoadArrived(state) {
+
+            const isSameState = (curState, oldState) => {
+
+                let set = new Set()
+
+                for (const v of oldState) {
+                    set.add(v.join())
+                }
+
+                for (const v of curState) {
+                    const t = v.join();
+                    if (t===""){
+                        continue
+                    }
+                    if (set.has(t)){
+                        set.delete(t)
+                    }else{
+                        return false
+                    }
+                }
+
+                return true
+
+                // let sameCount = 0
+                // let notMatchedState = [...oldState]
+                //
+                // for (let i = 0; i < curState.length; i++) {
+                //     let curTube = notMatchedState[i]
+                //
+                //
+                //     for (const oldTube of notMatchedState) {
+                //
+                //
+                //     //     if (this.isTwoSame(tube, oldTube)) {
+                //     //         sameCount++
+                //     //         notMatchedState.splice(i, 1)
+                //     //         break
+                //     //     }
+                //     }
+                // }
+                // if (sameCount === curState.length) {
+                //     return true
+                // }
+            }
+
+            for (const oldState of this.states) {
+                if (isSameState(state, oldState)) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        isSame(a) {
+            if (a.length === 0) {
+                return true
+            }
+            const sample = a[0];
+            return a.every(e => e === sample)
+        }
+
+        isSolved(state) {
+            return state.every(tube => {
+                if (tube.length === 0) {
+                    return true
+                }
+
+                if (this.isSame(tube) && tube.length === 4) {
+                    return true
+                }
+            })
+        }
+
+        copy(state) {
+            return JSON.parse(JSON.stringify(state))     //  copy state
+        }
+
+        calcNextStates(state, curIdx) {
+            this.currentState = state
+
+            // console.log(this.getNotEmptyTubes(),this.getNotFilledTubes())
+
+            for (const notEmptyTubeIdx of this.getNotEmptyTubes()) {
+                for (const notFilledTubeIdx of this.getNotFilledTubes()) {
+                    if (notEmptyTubeIdx === notFilledTubeIdx) {    //  exclude self to self
+                        continue
+                    }
+
+                    if (state[notFilledTubeIdx].length !== 0 &&
+                        lastEl(state[notEmptyTubeIdx]) !== lastEl(state[notFilledTubeIdx])) {
+                        continue
+                    }
+
+
+                    let nextState = this.copy(state)
+                    this.transferA2B(nextState[notEmptyTubeIdx], nextState[notFilledTubeIdx])
+
+                    if (this.hadTheRoadArrived(nextState)) {
+                        continue
+                    }
+
+                    this.nextStates.enqueue([nextState, curIdx])
+
+                    if (this.isSolved(nextState)) {
+                        let idx = curIdx
+                        let res = []
+                        while (idx !== -1) {
+                            res.push(this.states[idx])
+                            idx = this.prevDict.get(idx)
+                        }
+                        return true
+                    }
+                }
+            }
+            // console.log(this.nextStates.data)
+            // console.log(this.data)
+            //
+            // debugger
+
+            return false
+        }
+
+        solve() {
+            this.nextStates.enqueue([this.data, -1])
+
+            // this.insurance = 100000
+
+            while (!this.nextStates.isEmpty()) {
+                const [state, prevIdx] = this.nextStates.dequeue()
+
+                // if (this.insurance <= 0) {
+                //     console.warn("there is some problem in your program,please check it over and over again.")
+                //     break
+                // }
+                // this.insurance--
+
+                this.states.push(state)
+                const curIdx = this.states.length - 1;
+                this.prevDict.set(curIdx, prevIdx)    //  current => prevState
+
+                if (this.calcNextStates(state, curIdx)) {
+                    console.log(" the solution of puzzle has been found here !")
+                    return
+                }
+            }
+
+            console.log("there is no solution for this puzzle at all!")
+        }
+
+    }
+
+    // generateData(4)
+    // const t2 = [[1,1,2,1],[2,2,1,2],[],[]]
+    // const solve = new Solve(t2);
+    // solve.solve()
+
+    // console.log(solve.isSolved([
+    //     [1, 1, 1, 1],   // on the bottom of the tube => 1 ,  on the top of the tube => 5
+    //     [2, 2, 2, 2],
+    //     // [2, 5, 4, 1],
+    //     // [4, 4, 3, 3],
+    //     // [3, 5, 2, 1],
+    //     [3,3,3,3],
+    //     []
+    //     []
+    // ]));
+
+
+    const d2 = [
+        [1, 1, 2, 2],
+        [1],
+        [],
+        [2, 2, 1, 1]
+    ];
+
+    const d3 = [
+        [1, 1, 2, 2],
+        [2, 2, 1, 1],
+        [],
+        [],
+    ];
+    const solve = new Solve();
+    solve.states.push(d2)
+    console.log(solve.hadTheRoadArrived(d3));
+
+</script>
+</body>
+</html>

@@ -82,7 +82,7 @@ export class Scene {
         glCtx.pixelStorei(glCtx.UNPACK_FLIP_Y_WEBGL, true);
 
         //   用于设置清空颜色缓冲区时的清空颜色。它并不会立即执行清空操作，而只是设置一个颜色值
-        // glCtx.clearColor(.9, .9, .9, 1)
+        glCtx.clearColor(.0, .0, .0, .0)
         glCtx.clearDepth(glCtx.DEPTH_CLEAR_VALUE)
     }
 
